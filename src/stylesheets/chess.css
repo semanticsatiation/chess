@@ -1,0 +1,35 @@
+.chess-board {
+    flex-direction: column;
+    border: 1px solid;
+}
+
+.block {
+    height: 80px;
+    width: 80px;
+    font-size: 35px;
+    border: 1px solid;
+}
+
+.row:nth-child(odd) .block:nth-child(odd), 
+.row:nth-child(even) .block:nth-child(even) {
+    background: #cecece;
+}
+
+.row:nth-child(odd) .block:nth-child(even), 
+.row:nth-child(even) .block:nth-child(odd) {
+    background: #797979;
+}
+
+.center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.black {
+    color: black;
+}
+
+.white {
+    color: white;
+}
