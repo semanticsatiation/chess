@@ -40,6 +40,10 @@ input[type="submit"] {
   cursor: pointer;
 }
 
+html {
+  background: #797979;
+}
+
 html, body, #root {
     height: 100%;
     width: 100%;

@@ -1,3 +1,8 @@
+.chess-container {
+    display: flex;
+    align-items: center;
+}
+
 .chess-board {
     flex-direction: column;
     border: 1px solid;
@@ -12,7 +17,7 @@
 
 .row:nth-child(odd) .block:nth-child(odd), 
 .row:nth-child(even) .block:nth-child(even) {
-    background: #cecece;
+    background: #b6b6b6;
 }
 
 .row:nth-child(odd) .block:nth-child(even), 
@@ -20,7 +25,17 @@
     background: #797979;
 }
 
-.center {
+.dead-pieces {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 65px;
+    font-size: 35px;
+    gap: 5px;
+}
+
+.flex-center {
     display: flex;
     justify-content: center;
     align-items: center;

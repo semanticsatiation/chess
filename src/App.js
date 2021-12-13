@@ -4,22 +4,22 @@ import './stylesheets/chess.css';
 import { faChessBishop, faChessKing, faChessPawn, faChessKnight, faChessRook, faChessQueen} from '@fortawesome/free-solid-svg-icons';
 
 const defaultBoard = [
-  [ [0, 0], 'r', 'b', '1' ],   [ [0, 1], 'kn', 'b', '1' ],
-  [ [0, 2], 'b', 'b', '1' ],   [ [5, 4], 'q', 'b', '1' ],
-  [ [0, 4], 'kg', 'b', '1' ],  [ [0, 5], 'b', 'b', '2' ],
-  [ [0, 6], 'kn', 'b', '2' ],  [ [0, 7], 'r', 'b', '2' ],
-  [ [1, 0], 'p', 'b', '1' ],   [ [1, 1], 'p', 'b', '1' ],
-  [ [1, 2], 'p', 'b', '1' ],  [ [1, 3], 'p', 'b', '1' ],
-  [ [1, 4], 'p', 'b', '1' ],  [ [1, 5], 'p', 'b', '1' ],
-  [ [1, 6], 'p', 'b', '1' ],  [ [1, 7], 'p', 'b', '1' ],
-  [ [6, 0], 'p', 'w', '1' ],  [ [6, 1], 'p', 'w', '1' ],
-  [ [6, 2], 'p', 'w', '1' ],  [ [6, 3], 'p', 'w', '1' ],
-  [ [6, 4], 'p', 'w', '1' ],  [ [6, 5], 'p', 'w', '1' ],
-  [ [6, 6], 'p', 'w', '1' ],  [ [6, 7], 'p', 'w', '1' ],
-  [ [7, 0], 'r', 'w', '1' ],  [ [7, 1], 'kn', 'w', '1' ],
-  [ [7, 2], 'b', 'w', '1' ],  [ [7, 3], 'q', 'w', '1' ],
-  [ [7, 4], 'kg', 'w', '1' ], [ [7, 5], 'b', 'w', '2' ],
-  [ [7, 6], 'kn', 'w', '2' ], [ [7, 7], 'r', 'w', '2' ]
+  [ [3, 3], "r", "b" ],   [ [0, 1], "kn", "b" ],
+  [ [0, 2], "b", "b" ],   [ [2, 4], "q", "b" ],
+  [ [0, 4], "kg", "b" ],  [ [0, 5], "b", "b" ],
+  [ [0, 6], "kn", "b" ],  [ [0, 7], "r", "b" ],
+  [ [1, 0], "p", "b" ],   [ [1, 1], "p", "b" ],
+  [ [1, 2], "p", "b" ],  [ [1, 3], "p", "b" ],
+  [ [1, 4], "p", "b" ],  [ [1, 5], "p", "b" ],
+  [ [1, 6], "p", "b" ],  [ [1, 7], "p", "b" ],
+  [ [6, 0], "p", "w" ],  [ [6, 1], "p", "w" ],
+  [ [6, 2], "p", "w" ],  [ [6, 3], "p", "w" ],
+  [ [6, 4], "p", "w" ],  [ [6, 5], "p", "w" ],
+  [ [6, 6], "p", "w" ],  [ [6, 7], "p", "w" ],
+  [ [7, 0], "r", "w" ],  [ [7, 1], "kn", "w" ],
+  [ [7, 2], "b", "w" ],  [ [7, 3], "q", "w" ],
+  [ [7, 4], "kg", "w" ], [ [3, 5], "b", "w" ],
+  [ [4, 2], "kn", "w" ], [ [7, 7], "r", "w" ]
 ];
 
 const pieceCharacteristics = {
@@ -29,7 +29,7 @@ const pieceCharacteristics = {
       moveMoreThanOneBlock: true
   },
   "kn": {
-      moveSet: [[2, 1], [-2, -1], [-2, 1], [2, -1]],
+      moveSet: [[2, 1], [-2, -1], [-2, 1], [2, -1], [-1, -2], [-1, 2], [1, -2], [1, 2]],
       chessPiece: faChessKnight,
       moveMoreThanOneBlock: false
   },
@@ -57,7 +57,11 @@ const pieceCharacteristics = {
 
 const indexPiece = (pos) => (
   (pos[0] * 8) + pos[1]
-)
+);
+
+const isWithinBoardGrid = (pos) => (
+  pos[0] <= 7 && pos[1] <= 7 && pos[0] >= 0 && pos[1] >= 0
+);
 
 function App() {
   const [boardState, setBoardState] = useState([...defaultBoard]);
@@ -95,9 +99,9 @@ function App() {
 
     const validMoves = [];
 
-    // if (pieceTraits.moveMoreThanOneBlock === false) {
-    //   markValidPositions();
-    // } else {
+    if (pieceTraits.moveMoreThanOneBlock) {
+      addPositions(validMoves, pieceTraits.moveSet, piece[0], true);
+    } else {
       piece[1] === "p" ? (
         piece[2] === "b" ? (
           addPositions(validMoves, pieceTraits.moveSet[0], piece[0])
@@ -107,7 +111,7 @@ function App() {
       ) : (
         addPositions(validMoves, pieceTraits.moveSet, piece[0])
       )
-    // }
+    }
 
     setGameState({
       ...gameState,
@@ -116,34 +120,35 @@ function App() {
   };
 
   const setCurrentPiece = (pos, isMarked) => {
-    // we can not select tiles pieces that are not ours
-    // if we already have a current piece, this is telling us the player is trying to 
-    // trying to make a move and so if they select another tile, we set the new pos
-    // and if the pos has an enemy, delete the enemy from the board and set the current piece's 
-    // pos as that ALSO kings can not be landed on!!!
-
     if (isMarked) {
+      const newBoard = [...boardState];
+
+      const currentPieceInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(gameState.currentPiece[0]));
+
+      newBoard.splice(currentPieceInd, 1);
+
+      const targetTileInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(pos));
+
+      const newDeadPieces = [...gameState.deadPieces];
+
+      if (targetTileInd !== -1) {
+        const newArr = newBoard[targetTileInd];
+
+        gameState.currentTurn === "b" ? (newDeadPieces[1].push(newArr)) : (newDeadPieces[0].push(newArr));
+
+        newBoard.splice(targetTileInd, 1);
+      }
+
       setGameState({
         ...gameState,
         currentTurn: gameState.currentTurn === "b" ? ("w") : ("b"),
         currentPiece: undefined,
+        deadPieces: newDeadPieces
       });
 
-      const newBoard = [...boardState];
-
-      // WHEN ATTACKING AN OPPONENT PIECE, REMOVE FROM BOARD, THROW IN DEAD ARRAY (black screenLeft, white, right)
-
-      const posInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(gameState.currentPiece[0]));
-
-      const newArr = newBoard[posInd];
-
-      newBoard.splice(posInd, 1);
-      newArr.splice(0, 1);
-
-      
       setBoardState([
         ...newBoard,
-        [pos, ...newArr]
+        [pos, ...gameState.currentPiece.slice(1)]
       ]);
     } else {
       setGameState({
@@ -153,22 +158,46 @@ function App() {
     }
   };
 
-  const addPositions = (arr, moves, pos) => {
-    // i need to do RECURSION somewhere around here
+  const addPositions = (endArr, moves, pos, isRecursion = false) => {
+    if (isRecursion) {
+      moves.forEach((move) => {
+        const newPos = [move[0] + pos[0], move[1] + pos[1]];
 
-    moves.forEach((move) => {
-      const newPos = [move[0] + pos[0], move[1] + pos[1]];
+        if (isValidMove(newPos)) {
+          endArr.push(indexPiece(newPos));
 
-      if (isValidMove(newPos)) {
-        arr.push(indexPiece(newPos));
-      }
-    })
-  }
+          if (findPiece(indexPiece(newPos))!== undefined && findPiece(indexPiece(newPos))[2] !== gameState.currentTurn) {
+            return;
+          }
+          
+          addPositions(endArr, [move], newPos, isRecursion);
+        }
+      });
+    } else {
+      moves.forEach((move) => {
+        const newPos = [move[0] + pos[0], move[1] + pos[1]];
+  
+        if (isValidMove(newPos)) {
+          endArr.push(indexPiece(newPos));
+        }
+      });
+    }
+  };
+
+  const isOpposingPieceOrEmpty = (pos) => {
+    const foundPiece = findPiece(indexPiece(pos));
+
+    if (foundPiece === undefined) {
+      return true;
+    };
+
+    return foundPiece[2] !== gameState.currentTurn && foundPiece[1] !== "kg";
+  };
 
   const isValidMove = (pos) => {
-    if ((pos[0] > 7 && pos[1] > 7 || pos[0] < 0 && pos[1] < 0) || (boardState.some((piece) => ((indexPiece(piece[0]) === indexPiece(pos) && piece[2] === gameState.currentTurn) || piece[1] === "kg")))) {
-      return false;
-    }
+    if (isWithinBoardGrid(pos) && isOpposingPieceOrEmpty(pos)) {
+      return true;
+    };
 
   
 
@@ -190,7 +219,7 @@ function App() {
 
 
 
-    return true;
+    return false;
   };
 
   const findPiece = (index) => (
@@ -198,30 +227,54 @@ function App() {
   );
 
   return (
-    <ul className="chess-board center">{
-      [...Array(8)].map((item, ind) => (
-        <li className="row center" key={ind}>{
-            [...Array(8)].map((item, i) => {
-              const index = indexPiece([ind, i]);
+    <div className="chess-container">
+      <header>
+        <ul className="dead-pieces">{
+          gameState.deadPieces[0].map((piece, ind) => (
+            <Piece
+              key={ind}
+              icon={pieceCharacteristics[piece[1]].chessPiece}
+              color={piece[2]}
+            />
+          ))
+        }</ul>
+      </header>
+      <ul className="chess-board flex-center">{
+        [...Array(8)].map((item, ind) => (
+          <li className="row flex-center" key={ind}>{
+              [...Array(8)].map((item, i) => {
+                const index = indexPiece([ind, i]);
 
-              let piece = findPiece(index);
+                let piece = findPiece(index);
 
-              const isMarked = gameState.validPositions.includes(index);
+                const isMarked = gameState.validPositions.includes(index);
 
-              return (
-                <div className={`${isMarked ? ("mark") : ("")} block center`} key={i} onClick={(e) => setCurrentPiece([ind, i], isMarked)}>{
-                  piece !== undefined ? (
-                    <Piece
-                      icon={pieceCharacteristics[piece[1]].chessPiece}
-                      color={piece[2]}
-                    />
-                  ) : (null)
-                }</div>
-              );
-            })
-        }</li>
-      ))
-    }</ul>
+                return (
+                  <div className={`${isMarked ? ("mark") : ("")} block flex-center`} key={i} onClick={(e) => setCurrentPiece([ind, i], isMarked)}>{
+                    piece !== undefined ? (
+                      <Piece
+                        icon={pieceCharacteristics[piece[1]].chessPiece}
+                        color={piece[2]}
+                      />
+                    ) : (null)
+                  }</div>
+                );
+              })
+          }</li>
+        ))
+      }</ul>
+      <footer>
+        <ul className="dead-pieces flex-center">{
+          gameState.deadPieces[1].map((piece, ind) => (
+            <Piece
+              key={ind}
+              icon={pieceCharacteristics[piece[1]].chessPiece}
+              color={piece[2]}
+            />
+          ))
+        }</ul>
+      </footer>
+    </div>
   );
 };
 
