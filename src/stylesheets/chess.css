@@ -76,6 +76,10 @@
     background: rgba(255, 0, 0, 0.705) !important;
 }
 
+.danger {
+    background: green !important;
+}
+
 .current-piece {
     border: 5px solid rgba(255, 0, 0, 0.705);
 }
