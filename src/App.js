@@ -8,11 +8,11 @@ const defaultBoard = [
   [ [0, 2], "b", "b" ],   [ [2, 4], "q", "b" ],
   [ [0, 4], "kg", "b" ],  [ [0, 5], "b", "b" ],
   [ [0, 6], "kn", "b" ],  [ [0, 7], "r", "b" ],
-  [ [1, 0], "p", "b" ],   [ [1, 1], "p", "b" ],
+  [ [2, 1], "p", "b" ],   [ [1, 1], "p", "b" ],
   [ [1, 2], "p", "b" ],  [ [1, 3], "p", "b" ],
   [ [1, 4], "p", "b" ],  [ [1, 5], "p", "b" ],
   [ [1, 6], "p", "b" ],  [ [1, 7], "p", "b" ],
-  [ [6, 0], "p", "w" ],  [ [6, 1], "p", "w" ],
+  [ [1, 0], "p", "w" ],  [ [6, 1], "p", "w" ],
   [ [6, 2], "p", "w" ],  [ [6, 3], "p", "w" ],
   [ [6, 4], "p", "w" ],  [ [6, 5], "p", "w" ],
   [ [6, 6], "p", "w" ],  [ [6, 7], "p", "w" ],
@@ -49,7 +49,7 @@ const pieceCharacteristics = {
       moveMoreThanOneBlock: false
   },
   "p": {
-      moveSet: [[[1, 0], [2, 0]], [[-1, 0], [-2, 0]]],
+      moveSet: [[[1, 0], [2, 0], [1, 1], [1, -1]], [[-1, 0], [-2, 0], [-1, 1], [-1, -1]]],
       chessPiece: faChessPawn,
       moveMoreThanOneBlock: false
   },
@@ -65,6 +65,11 @@ const isWithinBoardGrid = (pos) => (
 
 function App() {
   const [boardState, setBoardState] = useState([...defaultBoard]);
+
+  const [convertOptions, setConvertOptions] = useState({
+    isShown: false,
+    pieceToConvert: undefined
+  });
 
   const [gameState, setGameState] = useState({
     currentTurn: "b",
@@ -104,9 +109,9 @@ function App() {
     } else {
       piece[1] === "p" ? (
         piece[2] === "b" ? (
-          addPositions(validMoves, pieceTraits.moveSet[0], piece[0])
+          addPositions(validMoves, [...piece[0][0] === 1 ? (pieceTraits.moveSet[0]) : ([pieceTraits.moveSet[0][0]]), pieceTraits.moveSet[0][2], pieceTraits.moveSet[0][3]], piece[0])
         ) : (
-          addPositions(validMoves, pieceTraits.moveSet[1], piece[0])
+          addPositions(validMoves, [...piece[0][0] === 6 ? (pieceTraits.moveSet[1]) : ([pieceTraits.moveSet[1][0]]), pieceTraits.moveSet[1][2], pieceTraits.moveSet[1][3]], piece[0])
         )
       ) : (
         addPositions(validMoves, pieceTraits.moveSet, piece[0])
@@ -120,43 +125,73 @@ function App() {
   };
 
   const setCurrentPiece = (pos, isMarked) => {
-    if (isMarked) {
-      const newBoard = [...boardState];
-
-      const currentPieceInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(gameState.currentPiece[0]));
-
-      newBoard.splice(currentPieceInd, 1);
-
-      const targetTileInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(pos));
-
-      const newDeadPieces = [...gameState.deadPieces];
-
-      if (targetTileInd !== -1) {
-        const newArr = newBoard[targetTileInd];
-
-        gameState.currentTurn === "b" ? (newDeadPieces[1].push(newArr)) : (newDeadPieces[0].push(newArr));
-
-        newBoard.splice(targetTileInd, 1);
+    if (!convertOptions.isShown) {
+      if (isMarked) {
+        const newBoard = [...boardState];
+  
+        const currentPiece = gameState.currentPiece;
+        const currentPieceInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(currentPiece[0]));
+  
+        newBoard.splice(currentPieceInd, 1);
+  
+        const targetTileInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(pos));
+  
+        const newDeadPieces = [...gameState.deadPieces];
+  
+        if (targetTileInd !== -1) {
+          const newArr = newBoard[targetTileInd];
+  
+          gameState.currentTurn === "b" ? (newDeadPieces[1].push(newArr)) : (newDeadPieces[0].push(newArr));
+  
+          newBoard.splice(targetTileInd, 1);
+        }
+  
+        setGameState({
+          ...gameState,
+          currentTurn: gameState.currentTurn === "b" ? ("w") : ("b"),
+          currentPiece: undefined,
+          deadPieces: newDeadPieces
+        });
+  
+        if (currentPiece[1] === "p") {
+          // if a pawn reaches the opponents side, give them the option to convert
+          if ((pos[0] === 7 && currentPiece[2] === "b") || (pos[0] === 0 && currentPiece[2] === "w")) {
+           setConvertOptions({
+             isShown: true,
+             pieceToConvert: [pos, ...currentPiece.slice(1)]
+           });
+          }
+        }
+  
+        setBoardState([
+          ...newBoard,
+          [pos, ...currentPiece.slice(1)]
+        ]);
+      } else {
+        setGameState({
+          ...gameState,
+          currentPiece: findPiece(pos)
+        });
       }
-
-      setGameState({
-        ...gameState,
-        currentTurn: gameState.currentTurn === "b" ? ("w") : ("b"),
-        currentPiece: undefined,
-        deadPieces: newDeadPieces
-      });
-
-      setBoardState([
-        ...newBoard,
-        [pos, ...gameState.currentPiece.slice(1)]
-      ]);
-    } else {
-      setGameState({
-        ...gameState,
-        currentPiece: findPiece(indexPiece(pos))
-      });
     }
   };
+
+  const convertPawn = (pos, newPiece) => {
+    const foundPiece = findPiece(pos);
+    const newBoard = [...boardState];
+
+    newBoard.splice(newBoard.findIndex((piece) => indexPiece(piece) === indexPiece(pos)), 1);
+
+    setConvertOptions({
+      isShown: false,
+      pieceToConvert: undefined
+    });
+
+    setBoardState([
+      ...newBoard,
+      [pos, newPiece, foundPiece[2]]
+    ]);
+  }
 
   const addPositions = (endArr, moves, pos, isRecursion = false) => {
     if (isRecursion) {
@@ -166,7 +201,7 @@ function App() {
         if (isValidMove(newPos)) {
           endArr.push(indexPiece(newPos));
 
-          if (findPiece(indexPiece(newPos))!== undefined && findPiece(indexPiece(newPos))[2] !== gameState.currentTurn) {
+          if (findPiece(newPos)!== undefined && findPiece(newPos)[2] !== gameState.currentTurn) {
             return;
           }
           
@@ -174,10 +209,32 @@ function App() {
         }
       });
     } else {
+      let shouldBreak = false;
+
+      const isInMoveSet = (moveSet, target) => (
+        moveSet.findIndex((moveArr) => indexPiece(target) === indexPiece(moveArr)) !== -1
+      );
+
       moves.forEach((move) => {
         const newPos = [move[0] + pos[0], move[1] + pos[1]];
-  
-        if (isValidMove(newPos)) {
+
+        // different rules for pawns
+        if (gameState.currentPiece[1] === "p") {
+          const foundPiece = findPiece(newPos);
+
+          // if there is a piece in front of a pawn, do not let it advance 2 spaces if the pawn is still at its original tile
+          if (isInMoveSet([[1, 0], [-1, 0]], move) && foundPiece !== undefined) {
+            shouldBreak = true;
+          } else {
+            // let the pawn advance one OR two spaces IF there are no pieces in the way; two spaces IF there are no pieces in front of the pawn
+            if (isInMoveSet([[1, 0], [2, 0], [-1, 0], [-2, 0]], move) && foundPiece === undefined && !shouldBreak) {
+              endArr.push(indexPiece(newPos));
+            // the pawn can not attack any opponent pieces unless it is diagonally ALSO, the king cannot be attacked
+            } else if (isInMoveSet([[1, 1], [1, -1], [-1, 1], [-1, -1]], move) && foundPiece !== undefined && foundPiece[1] !== "kg" && foundPiece[2] !== gameState.currentTurn) {
+              endArr.push(indexPiece(newPos));
+            }
+          }
+        } else if (isValidMove(newPos)) {
           endArr.push(indexPiece(newPos));
         }
       });
@@ -185,7 +242,7 @@ function App() {
   };
 
   const isOpposingPieceOrEmpty = (pos) => {
-    const foundPiece = findPiece(indexPiece(pos));
+    const foundPiece = findPiece(pos);
 
     if (foundPiece === undefined) {
       return true;
@@ -222,8 +279,8 @@ function App() {
     return false;
   };
 
-  const findPiece = (index) => (
-    boardState.find((piece) => indexPiece(piece[0]) === index)
+  const findPiece = (pos) => (
+    boardState.find((piece) => indexPiece(piece[0]) === indexPiece(pos))
   );
 
   return (
@@ -231,11 +288,12 @@ function App() {
       <header>
         <ul className="dead-pieces">{
           gameState.deadPieces[0].map((piece, ind) => (
-            <Piece
-              key={ind}
-              icon={pieceCharacteristics[piece[1]].chessPiece}
-              color={piece[2]}
-            />
+            <li key={ind}>
+              <Piece
+                icon={pieceCharacteristics[piece[1]].chessPiece}
+                color={piece[2]}
+              />
+            </li>
           ))
         }</ul>
       </header>
@@ -245,19 +303,44 @@ function App() {
               [...Array(8)].map((item, i) => {
                 const index = indexPiece([ind, i]);
 
-                let piece = findPiece(index);
+                let piece = findPiece([ind, i]);
 
                 const isMarked = gameState.validPositions.includes(index);
 
                 return (
-                  <div className={`${isMarked ? ("mark") : ("")} block flex-center`} key={i} onClick={(e) => setCurrentPiece([ind, i], isMarked)}>{
-                    piece !== undefined ? (
-                      <Piece
-                        icon={pieceCharacteristics[piece[1]].chessPiece}
-                        color={piece[2]}
-                      />
-                    ) : (null)
-                  }</div>
+                  <div className={`${isMarked ? ("mark") : ("")} block ${gameState.currentPiece && index === indexPiece(gameState.currentPiece[0]) ? ("current-piece") : ("")}`} key={i} onClick={(e) => setCurrentPiece([ind, i], isMarked)}>{
+                      piece !== undefined ? (
+                        <button className="flex-center">
+                          <Piece
+                            icon={pieceCharacteristics[piece[1]].chessPiece}
+                            color={piece[2]}
+                          />
+                        </button>
+                      ) : (null)
+                    }
+                    {
+                      convertOptions.isShown && indexPiece(convertOptions.pieceToConvert[0]) === index ? (
+                        <ul className="convert-options flex-center">
+                          {
+                          ["q", "b", "kn", "r"].map((piece, ind) => (
+                            <li key={ind} onClick={e => convertPawn(convertOptions.pieceToConvert[0], piece)}>
+                              <button className="flex-center">
+                                <Piece
+                                  icon={pieceCharacteristics[piece].chessPiece}
+                                  color={convertOptions.pieceToConvert[2]}
+                                />
+                              </button>
+                            </li>
+                          ))}
+                          <div className="arrow-down">
+                            <div className="inner-arrow-down">
+                            
+                            </div>
+                          </div>
+                        </ul>
+                      ) : (null)
+                    }
+                  </div>
                 );
               })
           }</li>
@@ -266,11 +349,12 @@ function App() {
       <footer>
         <ul className="dead-pieces flex-center">{
           gameState.deadPieces[1].map((piece, ind) => (
-            <Piece
-              key={ind}
-              icon={pieceCharacteristics[piece[1]].chessPiece}
-              color={piece[2]}
-            />
+            <li key={ind}>
+              <Piece
+                icon={pieceCharacteristics[piece[1]].chessPiece}
+                color={piece[2]}
+              />
+            </li>
           ))
         }</ul>
       </footer>
