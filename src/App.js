@@ -4,38 +4,23 @@ import './stylesheets/chess.css';
 import { faChessBishop, faChessKing, faChessPawn, faChessKnight, faChessRook, faChessQueen} from '@fortawesome/free-solid-svg-icons';
 
 
-// const defaultBoard = [
-//   [ [0, 0], "r", "b" ],  [ [0, 1], "kn", "b" ],
-//   [ [0, 6], "kn", "b" ], [ [0, 7], "r", "b" ],   
-//   [ [0, 2], "b", "b" ],  [ [0, 3], "q", "b" ],
-//   [ [0, 4], "kg", "b" ], [ [0, 5], "b", "b" ],
-//   [ [1, 0], "p", "b" ],  [ [1, 1], "p", "b" ],
-//   [ [1, 2], "p", "b" ],  [ [1, 3], "p", "b" ],
-//   [ [1, 4], "p", "b" ],  [ [1, 5], "p", "b" ],
-//   [ [1, 6], "p", "b" ],  [ [1, 7], "p", "b" ],
-//   [ [6, 0], "p", "w" ],  [ [6, 1], "p", "w" ],
-//   [ [6, 2], "p", "w" ],  [ [6, 3], "p", "w" ],
-//   [ [6, 4], "p", "w" ],  [ [6, 5], "p", "w" ],
-//   [ [6, 6], "p", "w" ],  [ [6, 7], "p", "w" ],
-//   [ [7, 0], "r", "w" ],  [ [7, 1], "kn", "w" ],
-//   [ [7, 2], "b", "w" ],  [ [7, 3], "q", "w" ],
-//   [ [7, 4], "kg", "w" ], [ [5, 3], "b", "w" ],
-//   [ [5, 2], "kn", "w" ], [ [7, 7], "r", "w" ]
-// ];
-
 const defaultBoard = [
   [ [0, 0], "r", "b" ],  [ [0, 1], "kn", "b" ],
   [ [0, 6], "kn", "b" ], [ [0, 7], "r", "b" ],   
-  [ [0, 2], "b", "b" ],  [ [6, 7], "q", "b" ],
+  [ [0, 2], "b", "b" ],  [ [0, 3], "q", "b" ],
   [ [0, 4], "kg", "b" ], [ [0, 5], "b", "b" ],
-  [ [1, 0], "p", "b" ],
+  [ [1, 0], "p", "b" ],  [ [1, 1], "p", "b" ],
   [ [1, 2], "p", "b" ],  [ [1, 3], "p", "b" ],
   [ [1, 4], "p", "b" ],  [ [1, 5], "p", "b" ],
   [ [1, 6], "p", "b" ],  [ [1, 7], "p", "b" ],
-  [ [7, 0], "r", "w" ],
-  [ [7, 4], "kg", "w" ],
-  [[7, 1], "b", "w" ],
-[ [7, 7], "r", "w" ]
+  [ [6, 0], "p", "w" ],  [ [6, 1], "p", "w" ],
+  [ [6, 2], "p", "w" ],  [ [6, 3], "p", "w" ],
+  [ [6, 4], "p", "w" ],  [ [6, 5], "p", "w" ],
+  [ [6, 6], "p", "w" ],  [ [6, 7], "p", "w" ],
+  [ [7, 0], "r", "w" ],  [ [7, 1], "kn", "w" ],
+  [ [7, 2], "b", "w" ],  [ [7, 3], "q", "w" ],
+  [ [7, 4], "kg", "w" ], [ [7, 5], "b", "w" ],
+  [ [7, 6], "kn", "w" ], [ [7, 7], "r", "w" ]
 ];
 
 const pieceCharacteristics = {
@@ -132,10 +117,13 @@ function App() {
     boardState.forEach((piece) => {
       const pieceTraits = pieceCharacteristics[piece[1]];
 
+      // only grab pieces from the opponent so we can figure out where they are currently threatening the current player's space
       if (gameState.currentTurn !== piece[2]) {
         if (pieceTraits.moveMoreThanOneBlock) {
           addBadPositions(dangerZones, pieceTraits.moveSet, piece[0], true);
         } else {
+          // since pawns can only move in one direction, we must separate the moving logic from white and black
+          // white only goes up while black only goes down
           piece[1] === "p" ? (
             piece[2] === "b" ? (
               addBadPositions(dangerZones, [pieceTraits.moveSet[0][2], pieceTraits.moveSet[0][3]], piece[0])
@@ -182,28 +170,21 @@ function App() {
   };
 
   const markValidPositions = () => {
-    // pawns should have the choice of moving one or two spaces ON THE FIRST MOVE,
-    // but after, only one move per space
-
     const piece = gameState.currentPiece;
-
     const pieceTraits = pieceCharacteristics[piece[1]];
-
     const moves = pieceTraits.moveSet;
-
     const validMoves = [];
-
     const castleArr = gameState.castlelable[gameState.currentTurn];
-
     const castleResults = [[isCastleable([[[0, 0], [0, -1], [0, -2]], [0, -3], [0, -4]], piece[0], castleArr), [0, -2]], [isCastleable([[[0, 0], [0, 1], [0, 2]], null, [0, 3]], piece[0], castleArr), [0, 2]]];
-
-    console.log(castleResults);
 
     if (pieceTraits.moveMoreThanOneBlock) {
       addPositions(validMoves, moves, piece[0], true);
     } else {
       if (piece[1] === "p") {
         piece[2] === "b" ? (
+          // piece[0][0] === 1, piece[0][0] === 6 are to figure out if the current pawn in is its original tile and hasn't moved
+          // if it still is, give the the ability to move to spaces forward 
+          // the ability is not granted yet unless it passes the conditions in the addPositions function
           addPositions(validMoves, [...piece[0][0] === 1 ? (moves[0]) : ([moves[0][0]]), moves[0][2], moves[0][3]], piece[0])
         ) : (
           addPositions(validMoves, [...piece[0][0] === 6 ? (moves[1]) : ([moves[1][0]]), moves[1][2], moves[1][3]], piece[0])
@@ -211,7 +192,7 @@ function App() {
         // 7 and 119 are to say that the king is no longer in the castle array meaning it moved which makes 
         // the sum of the two rook indices equal to 7 (black) or 119 (white)
       } else if (piece[1] === "kg" && kingHasNotMoved(castleArr) && castleArr.length !== 1 && castleResults.some((r) => r[0] === true)) {
-          addPositions(validMoves, [...moves, ...castleResults.map((r) => {if (r[0]) {return r[1]}} ).filter(e => e)], piece[0]);
+          addPositions(validMoves, [...moves, ...castleResults.map((r) => r[0] ? (r[1]) : (null)).filter(e => e)], piece[0]);
       } else {
         addPositions(validMoves, moves, piece[0]);
       }
@@ -224,13 +205,13 @@ function App() {
   };
 
   const isCastleable = (moves, pos, castleArr) => (
+    // check that there are no pieces in the way of the target rook and the king
     castleArr.includes(indexPiece([pos[0] + moves[2][0], pos[1] + moves[2][1]])) && 
       [...moves[0].slice(1), moves[1]].every((move) => (
         move === null ? (true) : (
           findPiece([pos[0] + move[0], pos[1] + move[1]]) === undefined
         )
-      )) && 
-      isNotInDanger(moves[0], pos)
+      )) && isNotInDanger(moves[0], pos) // the two tiles leading up to the rooks are not in danger
   )
 
   const isNotInDanger = (positions, currentPos) => (
@@ -240,70 +221,83 @@ function App() {
   ) 
 
   const kingHasNotMoved = (castleArr) => (
+    // if the sum of castlelable array for the current player is not equal to 7 or 119
+    // this means their king was never moved
     ![7, 119].includes(castleArr[0] + castleArr[1])
   )
 
   const setCurrentPiece = (pos, isMarked) => {
     if (!convertOptions.isShown) {
+      // if marked, this means we are moving a piece to another position
       if (isMarked) {
         const newBoard = [...boardState];
-  
+        const currentTurn = gameState.currentTurn;
         const currentPiece = gameState.currentPiece;
         const currentPieceInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(currentPiece[0]));
   
         newBoard.splice(currentPieceInd, 1);
   
         const targetTileInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(pos));
-  
         const newDeadPieces = [...gameState.deadPieces];
-
-        let newArr = [];
+        let attackee = [];
   
+        // we are attacking a piece if true
         if (targetTileInd !== -1) {
-          newArr = newBoard[targetTileInd];
+          attackee = newBoard[targetTileInd];
   
-          gameState.currentTurn === "b" ? (newDeadPieces[1].push(newArr)) : (newDeadPieces[0].push(newArr));
+          currentTurn === "b" ? (newDeadPieces[1].push(attackee)) : (newDeadPieces[0].push(attackee));
   
           newBoard.splice(targetTileInd, 1);
         }
 
-        const castleArr = gameState.castlelable[gameState.currentTurn];
+        const castleArr = gameState.castlelable[currentTurn];
+        const isRookAttacked = attackee[1] === "r";
 
-        console.log(newArr);
+        const setCastlelable = (attacked, color) => ({
+          [attacked ? (color === "b" ? ("w") : ("b")) : (color)]:
+          attacked ? (
+            gameState.castlelable[color === "b" ? ("w") : ("b")].filter((index) => index !== indexPiece(attackee[0]))
+          ) : (
+            castleArr.filter((index) => index !== indexPiece(currentPiece[0]))
+          )
+        });
 
-        // FIX THE REPETITIVE CODE HERE AND ALSO FIGURE OUT WHY WE STILL CAN JUMP TWO SPACES WITH 
-        // THE KING IF THE LEFT OR RIGHT ROOK MOVES
-        // ALSO WE CANT CASTLE IF THERE ARE DANGER SQUARES IN THE WAY ANDDDDD WE CANT BE IN CHECK
-        // JUST FIX CASLTING OVERALL, IT'S REALLY WEIRD NOW
-
-        const colorOpposite = () => (
-          gameState.currentTurn === "b" ? ("w") : ("b")
+        const normalPieceMove = () => (
+          // just move the piece to the new position
+          setBoardState([
+            ...newBoard,
+            [pos, ...currentPiece.slice(1)]
+          ])
         )
 
+        const defaultGameState = {
+          ...gameState,
+          currentTurn: currentTurn === "b" ? ("w") : ("b"),
+          currentPiece: undefined,
+          deadPieces: newDeadPieces,
+        }
 
-        // IF A KING OR ROOK ATTACKS A PIECE NEXT TO ITS SPACE AND THEN HEADS BACK TO THE ORIGINAL SPOT,
-        // IT IS STILL CASTLELABLE!!!!
-        // FIX THIS
-
-        // ROOKS GETTING ATTACKED HAS BEEN FIXED AND IT SHOULD REMOVE THEM FROM THEIR RESPECTIVE castlelable ARRAY
-        if (["kg", "r"].includes(currentPiece[1]) && kingHasNotMoved(castleArr) || newArr.length > 0) {
+        // if there is any king or rook interaction AND the current castlelable array is not less than 2
+        // continue so we can either castle or modify castlelable
+        if (((["kg", "r"].includes(currentPiece[1]) && kingHasNotMoved(castleArr)) || isRookAttacked) && castleArr.length > 1) {
           setGameState({
-            ...gameState,
-            currentTurn: colorOpposite(),
-            currentPiece: undefined,
-            deadPieces: newDeadPieces,
+            ...defaultGameState,
             castlelable: {
               ...gameState.castlelable,
-              [newArr.length > 0 ? (colorOpposite()) : (gameState.currentTurn)]: newArr.length > 0 ? (gameState.castlelable[colorOpposite()].filter((index) => index !== indexPiece(newArr[0]))) : (castleArr.filter((index) => index !== indexPiece(currentPiece[0])))
+              ...(isRookAttacked && currentPiece[1] === "r" ? (
+                {
+                  ...setCastlelable(isRookAttacked, currentTurn),
+                  ...setCastlelable(!isRookAttacked, currentTurn)
+                }
+              ) : (setCastlelable(isRookAttacked, currentTurn)))
             }
           });
 
+          // this is where the actual castling takes place 
+          // [2, 6, 58, 62].includes(indexPiece(pos)) lets us know if the king has moved to a castling position
           if (currentPiece[1] === "kg" && [2, 6, 58, 62].includes(indexPiece(pos))) {
             const isLeftRook = [2, 58].includes(indexPiece(pos));
-  
-            const rookInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === (isLeftRook ? (castleArr[0]) : (castleArr[castleArr.length - 1])));
-  
-            
+            const rookInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === (isLeftRook ? (castleArr[0]) : (castleArr[castleArr.length - 1])));          
             const newRookArr = [...newBoard[rookInd]];
     
             newBoard.splice(rookInd, 1);
@@ -314,23 +308,14 @@ function App() {
               [pos, ...currentPiece.slice(1)]
             ]);
           } else {
-            setBoardState([
-              ...newBoard,
-              [pos, ...currentPiece.slice(1)]
-            ]);
+            normalPieceMove();
           }
         } else {
           setGameState({
-            ...gameState,
-            currentTurn: colorOpposite(),
-            currentPiece: undefined,
-            deadPieces: newDeadPieces
+            ...defaultGameState
           });
 
-          setBoardState([
-            ...newBoard,
-            [pos, ...currentPiece.slice(1)]
-          ]);
+          normalPieceMove();
         }
   
         if (currentPiece[1] === "p") {
@@ -457,8 +442,6 @@ function App() {
   const findPiece = (pos) => (
     boardState.find((piece) => indexPiece(piece[0]) === indexPiece(pos))
   );
-
-  console.log(gameState.castlelable);
 
   return (
     <div className="chess-container">
