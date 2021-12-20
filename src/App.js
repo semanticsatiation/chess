@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import Piece from './components/piece';
 import './stylesheets/chess.css';
-import { faChessBishop, faChessKing, faChessPawn, faChessKnight, faChessRook, faChessQueen} from '@fortawesome/free-solid-svg-icons';
-
+import { faChessBishop, faChessKing, faChessPawn, faChessKnight, faChessRook, faChessQueen, faHourglassEnd} from '@fortawesome/free-solid-svg-icons';
 
 const defaultBoard = [
   [ [0, 0], "r", "b" ],  [ [0, 1], "kn", "b" ],
@@ -23,6 +22,28 @@ const defaultBoard = [
   [ [7, 6], "kn", "w" ], [ [7, 7], "r", "w" ]
 ];
 
+// piece cant leave position id it leaves to the king being checked!!!!
+
+// king should not be able to move into danger zones!!!
+
+// DOUBLE CHECK MEANS ONLY THE KING HAS THE ABILITY TO MOVE TO A SAFE SPOT
+// IF IT CANT, CHECKMATE
+// this means we need to not make danger zones a set because we need to see the tile the king is on and see 
+// if there are opponent pieces that have attacks that are also hitting the king's tile BUT ALSO, we need to see HOW Many piece are hitting the 
+// king's tile.  for instance: [5, 5, 3, 8, 24, 9, 56] is telling us that this are the current danger zones
+// if the king is on tile 5, this is telling us that the king is being attacked by 2 pieces because 5 shows up two times meaning it's
+// being attacked from two different directions
+
+// SINGLE CHECK MEANS THE KING IS ONLY BEING ATTACKED BY ONE PIECE,
+// THREE THINGS CAN HAPPEN HERE:
+// CAPTURE THE ATTACKER (CHECK IF ATTACKER IS IN DANGER ZONE), BLOCK THE ATTACKER (CHECK TO SEE IF ANY OF THE CURRENT PLAYER'S PIECES HAVE THE SAME DANGER ZONES AS THE ATTACKER), OR MOVE THE KING (KING HAS A TILE TO MOVE TO THAT ISNT IN DANGER)
+
+// if all areas are dangerous INCLUDING the space the king is on, checkmate
+// if the king is on a dangerous tile BUT there are safe options outside, then a check is happening
+// check is avoidable through king movement or ally interference
+// no other piece besides the king can move to get out of a check BUT other pieces can move if
+// they can get rid of the check on the king
+// KEEP IN MIND: There are others ways of having a stalmate happening (two kings is a stalemate, king vs king and knight, etc...)
 const pieceCharacteristics = {
   "r": {
       moveSet: [[-1, 0], [1, 0], [0, -1], [0, 1]],
@@ -82,6 +103,7 @@ function App() {
     currentlyEnPassantable: [[], []],
     validPositions: [],
     dangerZones: new Set([]),
+    isAttackingKing: [],
     deadPieces: [[], []],
     castlelable: {
       "b": [0, 4, 7],
@@ -102,17 +124,22 @@ function App() {
   }, [gameState.currentPiece]);
 
   useEffect(() => {
+    const dangers = markDangerZones();
+
+    // when the current turn changes, we need to check if there are any checks, checkmates, or stalemates
+
     setGameState((state) => ({
       ...state,
       currentPiece: undefined,
       validPositions: [],
-      dangerZones: markDangerZones()
+      dangerZones: dangers[0],
+      isAttackingKing: dangers[1]
     }));
   }, [gameState.currentTurn, convertOptions.isShown]);
 
 
   const markDangerZones = () => {
-    const dangerZones = new Set([]);
+    const dangerZones = [new Set([]), []];
 
     boardState.forEach((piece) => {
       const pieceTraits = pieceCharacteristics[piece[1]];
@@ -120,7 +147,7 @@ function App() {
       // only grab pieces from the opponent so we can figure out where they are currently threatening the current player's space
       if (gameState.currentTurn !== piece[2]) {
         if (pieceTraits.moveMoreThanOneBlock) {
-          addBadPositions(dangerZones, pieceTraits.moveSet, piece[0], true);
+          addBadPositions(dangerZones, pieceTraits.moveSet, piece[0], true, piece[0]);
         } else {
           // since pawns can only move in one direction, we must separate the moving logic from white and black
           // white only goes up while black only goes down
@@ -137,16 +164,22 @@ function App() {
       }
     });
 
-    return new Set(dangerZones);
+    return dangerZones;
   }
 
-  const addBadPositions = (endArr, moves, pos, isRecursion = false) => {
+  const addBadPositions = (endArr, moves, pos, isRecursion = false, root = undefined) => {
+    const kingPos = indexPiece(boardState.find((piece) => piece[1] === "kg" && piece[2] === gameState.currentTurn)[0]);
+    
     if (isRecursion) {
       moves.forEach((move) => {
         const newPos = [move[0] + pos[0], move[1] + pos[1]];
 
         if (isWithinBoardGrid(newPos)) {
-          endArr.add(indexPiece(newPos));
+          endArr[0].add(indexPiece(newPos));
+
+          if (kingPos === indexPiece(newPos)) {
+            endArr[1].push(indexPiece(root));
+          }
         }
 
         
@@ -154,7 +187,7 @@ function App() {
           return;
         }
 
-        addBadPositions(endArr, [move], newPos, isRecursion);
+        addBadPositions(endArr, [move], newPos, isRecursion, root);
       });
     } else {
       moves.forEach((move) => {
@@ -164,7 +197,11 @@ function App() {
           return;
         }
 
-        endArr.add(indexPiece(newPos));
+        endArr[0].add(indexPiece(newPos));
+
+        if (kingPos === indexPiece(newPos)) {
+          endArr[1].push(indexPiece(pos));
+        }
       });
     }
   };
@@ -175,6 +212,8 @@ function App() {
     const moves = pieceTraits.moveSet;
     const validMoves = [];
     const castleArr = gameState.castlelable[gameState.currentTurn];
+
+    // let's us know if we can castle on the left or right side (respectively)
     const castleResults = [[isCastleable([[[0, 0], [0, -1], [0, -2]], [0, -3], [0, -4]], piece[0], castleArr), [0, -2]], [isCastleable([[[0, 0], [0, 1], [0, 2]], null, [0, 3]], piece[0], castleArr), [0, 2]]];
 
     if (pieceTraits.moveMoreThanOneBlock) {
@@ -218,7 +257,7 @@ function App() {
     positions.every((move) => (
       !gameState.dangerZones.has(indexPiece([currentPos[0] + move[0], currentPos[1] + move[1]]))
     ))
-  ) 
+  )
 
   const kingHasNotMoved = (castleArr) => (
     // if the sum of castlelable array for the current player is not equal to 7 or 119
@@ -378,24 +417,32 @@ function App() {
       moves.forEach((move) => {
         const newPos = [move[0] + pos[0], move[1] + pos[1]];
 
-        // different rules for pawns
-        if (gameState.currentPiece[1] === "p") {
-          const foundPiece = findPiece(newPos);
+        if (isValidMove(newPos)) {
+          // different rules for pawns
+          if (gameState.currentPiece[1] === "p") {
+            const foundPiece = findPiece(newPos);
 
-          // if there is a piece in front of a pawn, do not let it advance 2 spaces if the pawn is still at its original tile
-          if (isInMoveSet([[1, 0], [-1, 0]], move) && foundPiece !== undefined) {
-            shouldBreak = true;
+            // if there is a piece in front of a pawn, do not let it advance 2 spaces if the pawn is still at its original tile
+            if (isInMoveSet([[1, 0], [-1, 0]], move) && foundPiece !== undefined) {
+              shouldBreak = true;
+            } else {
+              // let the pawn advance one OR two spaces IF there are no pieces in the way; two spaces IF there are no pieces in front of the pawn
+              if (isInMoveSet([[1, 0], [2, 0], [-1, 0], [-2, 0]], move) && foundPiece === undefined && !shouldBreak) {
+                endArr.push(indexPiece(newPos));
+              // the pawn can not attack any opponent pieces unless it is diagonally ALSO, the king cannot be attacked
+              } else if (isInMoveSet([[1, 1], [1, -1], [-1, 1], [-1, -1]], move) && foundPiece !== undefined && foundPiece[1] !== "kg" && foundPiece[2] !== gameState.currentTurn) {
+                endArr.push(indexPiece(newPos));
+              }
+            }
           } else {
-            // let the pawn advance one OR two spaces IF there are no pieces in the way; two spaces IF there are no pieces in front of the pawn
-            if (isInMoveSet([[1, 0], [2, 0], [-1, 0], [-2, 0]], move) && foundPiece === undefined && !shouldBreak) {
-              endArr.push(indexPiece(newPos));
-            // the pawn can not attack any opponent pieces unless it is diagonally ALSO, the king cannot be attacked
-            } else if (isInMoveSet([[1, 1], [1, -1], [-1, 1], [-1, -1]], move) && foundPiece !== undefined && foundPiece[1] !== "kg" && foundPiece[2] !== gameState.currentTurn) {
+            if (gameState.currentPiece[1] === "kg") {
+              if (!gameState.dangerZones.has(indexPiece(newPos))) {
+                endArr.push(indexPiece(newPos));
+              };
+            } else {
               endArr.push(indexPiece(newPos));
             }
-          }
-        } else if (isValidMove(newPos)) {
-          endArr.push(indexPiece(newPos));
+          } 
         }
       });
     }
@@ -416,25 +463,6 @@ function App() {
       return true;
     };
 
-  
-
-    // remember pawns can only move forward if theree is nothing in the way,
-    // also they can only attack diagonally
-
-    // a pawn should be able to attack a pawn diagnolly (if they are on the same row) if that atackee is currentlyEnPassantable
-    // but how would this logic work???
-
-    // we can create danger zones for the king meaning if the tiles surrounding the king is all
-    // danger, then it is a stalemate (maybe add these danger zones into an array and go from there)
-    // and we also gotta see how a check would work...
-    // if all areas are dangerous INCLUDING the space the king is on, checkmate
-    // if the king is on a dangerous tile BUT there are safe options outside, then a check is happening
-    // check is avoidable through king movement or ally interference
-    // no other piece besides the king can move to get out of a check BUT other pieces can move if
-    // they can get rid of the check on the king
-    // KEEP IN MIND: There are others ways of having a stalmate happening (two kings is a stalemate, king vs king and knight, etc...)
-
-
 
     return false;
   };
@@ -442,6 +470,75 @@ function App() {
   const findPiece = (pos) => (
     boardState.find((piece) => indexPiece(piece[0]) === indexPiece(pos))
   );
+
+  const isCheck = () => {
+    const kingPos = indexPiece(boardState.find((piece) => piece[1] === "kg" && piece[2] === gameState.currentTurn)[0]);
+
+    return gameState.dangerZones.has(kingPos);
+  }
+
+  const isCapturable = () => {
+
+  }
+
+  const isBlockable = () => {
+
+    addBadPositions()
+    const kingPos = indexPiece(boardState.find((piece) => piece[1] === "kg" && piece[2] === gameState.currentTurn)[0]);
+
+    return gameState.dangerZones.has(kingPos);
+  }
+
+  const isDoubleCheck = () => (
+    gameState.isAttackingKing.length > 1
+  )
+
+  const isStalemate = () => {
+  }
+
+  const isCheckmate = () => {
+    // THIS IS DUPLICATE CODE I NEED TO FIGURE OUT HOW TO CUT DOWN ON IT.
+    // MAYBE I CAN JUST KEEP AN ARRAY IN THE GAMESTATE FOR THE KINGS VALID MOVES INSTEAD OF WAITING
+    // FOR A USER TO CLICK ON THE ACTUAL PIECE TO GET THE VALID MOVES 
+    // SO THIS MEANS WHEN WE CLICK ON THE KING, WE JUST REFER TO THE gameState.kingValidMoves ARRAY INSTEAD OF 
+    // REFERRING TO THE markValidPositions FUNCTION
+
+    // WE ADD TO THE gameState.kingValidMoves WHEN THE PLAYER TURN CHANGES
+    const king = boardState.find((piece) => piece[1] === "kg" && piece[2] === gameState.currentTurn);
+
+    const castleArr = gameState.castlelable[gameState.currentTurn];
+
+    // let's us know if we can castle on the left or right side (respectively)
+    const castleResults = [[isCastleable([[[0, 0], [0, -1], [0, -2]], [0, -3], [0, -4]], king[0], castleArr), [0, -2]], [isCastleable([[[0, 0], [0, 1], [0, 2]], null, [0, 3]], king[0], castleArr), [0, 2]]];
+
+    const kingValidMoves = [];
+
+    const moves = pieceCharacteristics["kg"].moveSet;
+
+    if (kingHasNotMoved(castleArr) && castleArr.length !== 1 && castleResults.some((r) => r[0] === true)) {
+      [...moves, ...castleResults.map((r) => r[0] ? (r[1]) : (null)).filter(e => e)].forEach((move) => {
+        const newPos = [move[0] + king[0][0], move[1] + king[0][1]];
+
+        if (isValidMove(newPos)) {
+          // different rules for pawns
+          kingValidMoves.push(indexPiece(newPos));
+        }
+      });
+    } else {
+      moves.forEach((move) => {
+        const newPos = [move[0] + king[0][0], move[1] + king[0][1]];
+
+        if (isValidMove(newPos)) {
+          // different rules for pawns
+          kingValidMoves.push(indexPiece(newPos));
+        }
+      });
+    }
+
+    // return (isCheck && !isBlockable && !isCapturable) || (isDoubleCheck && !isNotInDanger && kingValidMoves > 0);
+  }
+
+  console.log(isCheck(), isDoubleCheck(), gameState.isAttackingKing, isCheckmate());
 
   return (
     <div className="chess-container">
