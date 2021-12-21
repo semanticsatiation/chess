@@ -533,14 +533,6 @@ function App() {
   }
 
   const isCheckmate = () => {
-    // THIS IS DUPLICATE CODE I NEED TO FIGURE OUT HOW TO CUT DOWN ON IT.
-    // MAYBE I CAN JUST KEEP AN ARRAY IN THE GAMESTATE FOR THE KINGS VALID MOVES INSTEAD OF WAITING
-    // FOR A USER TO CLICK ON THE ACTUAL PIECE TO GET THE VALID MOVES 
-    // SO THIS MEANS WHEN WE CLICK ON THE KING, WE JUST REFER TO THE gameState.kingValidMoves ARRAY INSTEAD OF 
-    // REFERRING TO THE markValidPositions FUNCTION
-
-    // WE ADD TO THE gameState.kingValidMoves WHEN THE PLAYER TURN CHANGES
-
     // return (isDoubleCheck && !isNotInDanger && kingValidMoves > 0) || (isCheck && !isBlockable && !isCapturable);
   }
 
