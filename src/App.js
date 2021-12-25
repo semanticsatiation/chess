@@ -34,6 +34,8 @@ const defaultBoard = [
 // DON'T FORGET TO ADD EN PASSANT
 
 // CHECK HOW LETTING OUR PAWN CONVERT CHANGES WITH THE BOARD SINCE IT ACTIVATES THE [gameState.currentTurn, convertOptions.isShown] EFFECT (SECOND EFFECT)!!!!!!!
+// ALSO CHECK IF IT WORKS WITH OTHER CONDITIONS LIKE CHECKMATE, CHECK, DOUBLE CHECK, ILLEGAL MOVES (REWIND CONVERSION IF ILLEGAL), ETC...
+// JUST CHECKED!!!!  CONVERTING ON AN ILLEGAL MOVE CRASHES THE APP!!!!! FOR INSTANCE, CONVERTING WHEN OWN KING IS IN CHECK CRASHES THE APP!!!!
 const pieceCharacteristics = {
   "r": {
       moveSet: [[-1, 0], [1, 0], [0, -1], [0, 1]],
@@ -142,7 +144,6 @@ function App() {
     // BUT we pnly do this is there was a check AND the game is not over
     if (!gameState.gameIsOver) {
       if (isCheck(checkLastPlayersStatus[1])) {
-        console.log("PLAYER MADE A MISTAKE", gameState.lastBoardState);
         setGameState({
           ...gameState,
           ...gameState.lastBoardState.gameState,
@@ -387,7 +388,7 @@ function App() {
   );
 
   const setCurrentPiece = (pos, isMarked) => {
-    if (!convertOptions.isShown) {
+    if (!convertOptions.isShown && !gameState.gameIsOver) {
       // if marked, this means we are moving a piece to another position
       if (isMarked) {
         const newBoard = [...boardState];
