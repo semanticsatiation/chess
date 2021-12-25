@@ -154,6 +154,7 @@ function App() {
     // BUT we pnly do this is there was a check AND the game is not over
     if (!gameState.gameIsOver) {
       if (isCheck(checkLastPlayersStatus[1])) {
+        console.log("PLAYER MADE A MISTAKE", gameState.lastBoardState);
         setGameState({
           ...gameState,
           ...gameState.lastBoardState.gameState,
@@ -405,11 +406,19 @@ function App() {
         const currentTurn = gameState.currentTurn;
         const currentPiece = gameState.currentPiece;
         const currentPieceInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(currentPiece[0]));
-  
+        console.log(boardState);
         newBoard.splice(currentPieceInd, 1);
+
+        console.log(newBoard);
+
+        console.log(boardState);
   
         const targetTileInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(pos));
-        const newDeadPieces = [...gameState.deadPieces];
+
+        // I NEED TO BE EXTREMELY CAREFUL HERE.  ORIGINALYL I WAS DOING THIS: [...gameState.deadPieces]
+        // BUT THIS DOESN'T SHOWR COPY!!!!!!!
+        // MEANING I WAS MODIFYING THE STATE DIRECTLY SO I HAD TO CREATE A COPY OF BOTH SIDES LIKE SO:
+        const newDeadPieces = [[...gameState.deadPieces[0]], [...gameState.deadPieces[1]]];
         let attackee = [];
   
         // we are attacking a piece if true
