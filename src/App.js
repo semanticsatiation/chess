@@ -24,12 +24,7 @@ const defaultBoard = [
 
 // TEST ALL CHECK AND CHECKMATE POSSIBILITIES
 
-// piece cant leave position if it leaves to the king being checked!!!!
-
-// THE PLAYER HAS TO CHOOSE WHAT TO DO IF THE KING IS IN CHECK
-// IF THEY PICK A MOVE THAT DOESNT HELP THE KING GET OUT OF CHECK, RESET THE MOVE SO THEY PICK THE RIGHT PIECE
-
-// if all areas are dangerous INCLUDING the space the king is on, checkmate
+// if all areas are dangerous INCLUDING the space the king is on, checkmate UNLESS we can capture or block
 // if the king is on a dangerous tile BUT there are safe options outside, then a check is happening
 // check is avoidable through king movement or ally interference
 // no other piece besides the king can move to get out of a check BUT other pieces can move if
@@ -37,13 +32,6 @@ const defaultBoard = [
 // KEEP IN MIND: There are others ways of having a stalmate happening (two kings is a stalemate, king vs king and knight, etc...)
 
 // DON'T FORGET TO ADD EN PASSANT
-
-// SO I JUST FIGURED OUT THAT THE KING IS ABLE TO MOVE IN THE OPPOSITE DIRECTION OF THE RECURSIVE PIECE IS BEING ATTACKED FROM
-// SO FOR INSTANCE, IF THE KING IS BEING ATTACKED FROM THE LEFT SIDE FROM THE QUEEN [0, -1], IT COULD MOVE TO THE RIGHT SIDE [0, 1] AND IT WOULD BE CONSIDERED SAFE!!!!
-// THIS IS OBVIOUSLY ILLEGAL!!!
-// MAYBE I CAN LET THE PLAYER CHOOSE THE MOVE BUT THEN IT IS REVERSED IF THE KING IS STILL IN DANGER?????
-// OR JUST DON'T ALLOW IT AT ALL!!!!!!!!
-// 
 
 // CHECK HOW LETTING OUR PAWN CONVERT CHANGES WITH THE BOARD SINCE IT ACTIVATES THE [gameState.currentTurn, convertOptions.isShown] EFFECT (SECOND EFFECT)!!!!!!!
 const pieceCharacteristics = {
@@ -406,17 +394,13 @@ function App() {
         const currentTurn = gameState.currentTurn;
         const currentPiece = gameState.currentPiece;
         const currentPieceInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(currentPiece[0]));
-        console.log(boardState);
+
         newBoard.splice(currentPieceInd, 1);
-
-        console.log(newBoard);
-
-        console.log(boardState);
   
         const targetTileInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(pos));
 
         // I NEED TO BE EXTREMELY CAREFUL HERE.  ORIGINALYL I WAS DOING THIS: [...gameState.deadPieces]
-        // BUT THIS DOESN'T SHOWR COPY!!!!!!!
+        // BUT THIS DOESN'T CREATE A DEEP  COPY, IT ONLY CREATES A SHALLOW COPY!!!!!!!
         // MEANING I WAS MODIFYING THE STATE DIRECTLY SO I HAD TO CREATE A COPY OF BOTH SIDES LIKE SO:
         const newDeadPieces = [[...gameState.deadPieces[0]], [...gameState.deadPieces[1]]];
         let attackee = [];
