@@ -4,38 +4,35 @@ import './stylesheets/chess.css';
 import { faChessBishop, faChessKing, faChessPawn, faChessKnight, faChessRook, faChessQueen} from '@fortawesome/free-solid-svg-icons';
 
 const defaultBoard = [
-  [ [0, 0], "r", "b" ],  [ [0, 1], "kn", "b" ],
-  [ [0, 6], "kn", "b" ], [ [0, 7], "r", "b" ],   
-  [ [0, 2], "b", "b" ],  [ [0, 3], "q", "b" ],
-  [ [0, 4], "kg", "b" ], [ [0, 5], "b", "b" ],
-  [ [1, 0], "p", "b" ],  [ [1, 1], "p", "b" ],
-  [ [1, 2], "p", "b" ],  [ [1, 3], "p", "b" ],
-  [ [1, 4], "p", "b" ],  [ [1, 5], "p", "b" ],
-  [ [1, 6], "p", "b" ],  [ [1, 7], "p", "b" ],
-  [ [6, 0], "p", "w" ],  [ [6, 1], "p", "w" ],
-  [ [6, 2], "p", "w" ],  [ [6, 3], "p", "w" ],
-  [ [6, 4], "p", "w" ],  [ [6, 5], "p", "w" ],
-  [ [6, 6], "p", "w" ],  [ [6, 7], "p", "w" ],
-  [ [7, 0], "r", "w" ],  [ [7, 1], "kn", "w" ],
+  [ [0, 4], "kg", "b" ], [[3, 3], "p", "b" ],
+  [ [1, 3], "r", "w" ],  [ [7, 1], "kn", "w" ],
   [ [7, 2], "b", "w" ],  [ [7, 3], "q", "w" ],
   [ [7, 4], "kg", "w" ], [ [7, 5], "b", "w" ],
-  [ [7, 6], "kn", "w" ], [ [7, 7], "r", "w" ]
+  [ [7, 6], "kn", "w" ], [ [2, 5], "r", "w" ]
 ];
+
+// const defaultBoard = [
+//   [ [0, 0], "r", "b" ],  [ [0, 1], "kn", "b" ],
+//   [ [0, 6], "kn", "b" ], [ [0, 7], "r", "b" ],   
+//   [ [0, 2], "b", "b" ],  [ [0, 3], "q", "b" ],
+//   [ [0, 4], "kg", "b" ], [ [0, 5], "b", "b" ],
+//   [ [1, 0], "p", "b" ],  [ [1, 1], "p", "b" ],
+//   [ [1, 2], "p", "b" ],  [ [1, 3], "p", "b" ],
+//   [ [1, 4], "p", "b" ],  [ [1, 5], "p", "b" ],
+//   [ [1, 6], "p", "b" ],  [ [1, 7], "p", "b" ],
+//   [ [6, 0], "p", "w" ],  [ [6, 1], "p", "w" ],
+//   [ [6, 2], "p", "w" ],  [ [6, 3], "p", "w" ],
+//   [ [6, 4], "p", "w" ],  [ [6, 5], "p", "w" ],
+//   [ [6, 6], "p", "w" ],  [ [6, 7], "p", "w" ],
+//   [ [7, 0], "r", "w" ],  [ [7, 1], "kn", "w" ],
+//   [ [7, 2], "b", "w" ],  [ [7, 3], "q", "w" ],
+//   [ [7, 4], "kg", "w" ], [ [7, 5], "b", "w" ],
+//   [ [7, 6], "kn", "w" ], [ [7, 7], "r", "w" ]
+// ];
 
 // TEST ALL CHECK AND CHECKMATE POSSIBILITIES
 
-// if all areas are dangerous INCLUDING the space the king is on, checkmate UNLESS we can capture or block
-// if the king is on a dangerous tile BUT there are safe options outside, then a check is happening
-// check is avoidable through king movement or ally interference
-// no other piece besides the king can move to get out of a check BUT other pieces can move if
-// they can get rid of the check on the king
-// KEEP IN MIND: There are others ways of having a stalmate happening (two kings is a stalemate, king vs king and knight, etc...)
-
 // DON'T FORGET TO ADD EN PASSANT
-
-// CHECK HOW LETTING OUR PAWN CONVERT CHANGES WITH THE BOARD SINCE IT ACTIVATES THE [gameState.currentTurn, convertOptions.isShown] EFFECT (SECOND EFFECT)!!!!!!!
-// ALSO CHECK IF IT WORKS WITH OTHER CONDITIONS LIKE CHECKMATE, CHECK, DOUBLE CHECK, ILLEGAL MOVES (REWIND CONVERSION IF ILLEGAL), ETC...
-// JUST CHECKED!!!!  CONVERTING ON AN ILLEGAL MOVE CRASHES THE APP!!!!! FOR INSTANCE, CONVERTING WHEN OWN KING IS IN CHECK CRASHES THE APP!!!!
 const pieceCharacteristics = {
   "r": {
       moveSet: [[-1, 0], [1, 0], [0, -1], [0, 1]],
@@ -184,10 +181,15 @@ function App() {
         }
     
          // when the current turn changes, we need to check if there are any checks, checkmates, or stalemates for the current player
-        if (isCheckmate(validKingMoves, gameState.currentTurn, dangers[1]) || isStalemate()) {
+        if (isCheckmate(validKingMoves, gameState.currentTurn, dangers[1])) {
           setGameState((state) => ({
             ...state,
             gameIsOver: [true, oppositeColor(gameState.currentTurn)]
+          }));
+        } else if (isStalemate(validKingMoves, gameState.currentTurn, dangers[1])) {
+          setGameState((state) => ({
+            ...state,
+            gameIsOver: [true, ""]
           }));
         } else {
           setGameState((state) => ({
@@ -513,20 +515,21 @@ function App() {
   };
 
   const convertPawn = (pos, newPiece) => {
-    const foundPiece = findPiece(pos);
-    const newBoard = [...boardState];
+    if (!isCheck(gameState.isAttackingKing)) {
+      const foundPiece = findPiece(pos);
+      const newBoard = [...boardState];
+      newBoard.splice(newBoard.findIndex((piece) => indexPiece(piece) === indexPiece(pos)), 1);
 
-    newBoard.splice(newBoard.findIndex((piece) => indexPiece(piece) === indexPiece(pos)), 1);
+      setBoardState([
+        ...newBoard,
+        [pos, newPiece, foundPiece[2]]
+      ]);
+    }
 
     setConvertOptions({
       isShown: false,
       pieceToConvert: undefined
     });
-
-    setBoardState([
-      ...newBoard,
-      [pos, newPiece, foundPiece[2]]
-    ]);
   };
 
   const isOpposingPieceOrEmpty = (pos) => {
@@ -598,8 +601,37 @@ function App() {
     return attackingKing.some((arr) => arr[1].some((atk) => validMoves.includes(atk)));
   };
 
-  const isStalemate = () => (
-    false
+  const isStalemate = (validKingMoves, currentTurn, attackingKing) => (
+    !isCheck(attackingKing) && boardState.every((piece) => {
+      const pos = piece[0];
+      const type = piece[1];
+      const pieceTraits = pieceCharacteristics[piece[1]];
+      const moves = pieceTraits.moveSet;
+      let validMoves = [];
+
+      if (piece[2] === currentTurn) {
+        if (pieceTraits.moveMoreThanOneBlock) {
+          addPositions(validMoves, type, moves, pos, true);
+        } else {
+          if (type === "p") {
+            piece[2] === "b" ? (
+              // pos[0] === 1, pos[0] === 6 are to figure out if the current pawn in is its original tile and hasn't moved
+              // if it still is, give the the ability to move to spaces forward 
+              // the ability is not granted yet unless it passes the conditions in the addPositions function
+              addPositions(validMoves, type, [...pos[0] === 1 ? (moves[0]) : ([moves[0][0], moves[0][2], moves[0][3]])], pos)
+            ) : (
+              addPositions(validMoves, type, [...pos[0] === 6 ? (moves[1]) : ([moves[1][0], moves[1][2], moves[1][3]])], pos)
+            )
+          } else if (type === "kg") {
+            validMoves = validKingMoves;
+          } else {
+            addPositions(validMoves, type, moves, pos);
+          }
+        }
+      }
+
+      return validMoves.length <= 0;
+    })
   );
 
   const isCheckmate = (validKingMoves, currentTurn, attackingKing) => (
@@ -615,7 +647,13 @@ function App() {
   return (
     <div className="chess-container">
       <div>{
-        gameState.gameIsOver[0] ? (`YOU WON ${gameState.gameIsOver[1]}`) : (null)
+        gameState.gameIsOver[0] ? (
+          gameState.gameIsOver[1] === "" ? (
+            "It is a stalemate!"
+          ) : (
+            `YOU WON ${gameState.gameIsOver[1]}`
+          )
+        ) : (null)
       }</div>
       <header>
         <ul className="dead-pieces">{
