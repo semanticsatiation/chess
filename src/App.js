@@ -3,14 +3,6 @@ import Piece from './components/piece';
 import './stylesheets/chess.css';
 import { faChessBishop, faChessKing, faChessPawn, faChessKnight, faChessRook, faChessQueen} from '@fortawesome/free-solid-svg-icons';
 
-const defaultBoard = [
-  [ [0, 4], "kg", "b" ], [[3, 3], "p", "b" ],
-  [ [1, 3], "r", "w" ],  [ [7, 1], "kn", "w" ],
-  [ [7, 2], "b", "w" ],  [ [7, 3], "q", "w" ],
-  [ [7, 4], "kg", "w" ], [ [7, 5], "b", "w" ],
-  [ [7, 6], "kn", "w" ], [ [2, 5], "r", "w" ]
-];
-
 // const defaultBoard = [
 //   [ [0, 0], "r", "b" ],  [ [0, 1], "kn", "b" ],
 //   [ [0, 6], "kn", "b" ], [ [0, 7], "r", "b" ],   
@@ -30,7 +22,23 @@ const defaultBoard = [
 //   [ [7, 6], "kn", "w" ], [ [7, 7], "r", "w" ]
 // ];
 
+const defaultBoard = [
+ 
+ 
+ [ [0, 3], "q", "b" ],
+  [ [0, 4], "kg", "b" ], [ [0, 5], "b", "b" ],
+  [ [1, 1], "p", "b" ],
+  [ [1, 2], "p", "b" ],  [ [1, 3], "p", "b" ],
+[ [6, 1], "p", "w" ],
+  [ [6, 2], "p", "w" ],  [ [6, 3], "p", "w" ],
+  [ [7, 0], "r", "w" ],  [ [7, 1], "kn", "w" ],
+  [ [7, 4], "kg", "w" ],
+  [ [7, 6], "kn", "w" ], [ [7, 7], "r", "w" ]
+];
+
 // TEST ALL CHECK AND CHECKMATE POSSIBILITIES
+
+// FOR EN PASSANT MAKE SURE THAT A FORCED EN PASSANT IS A VALID MOVE IF THERE ARE NO OTHER POSSIBLE MOVES
 
 // DON'T FORGET TO ADD EN PASSANT
 const pieceCharacteristics = {
@@ -103,7 +111,7 @@ function App() {
     // currentlyEnPassantable should be set to undefined when the turn comes back to 
     // the player that moved their pawn and caused the currentlyEnPassantable to be not undefined
     // currentlyEnPassantable[0] is black and obviously white is [1]
-    currentlyEnPassantable: [[], []],
+    currentlyEnPassantable: undefined,
     validPositions: [],
     dangerZones: new Set([]),
     isAttackingKing: [],
@@ -181,12 +189,12 @@ function App() {
         }
     
          // when the current turn changes, we need to check if there are any checks, checkmates, or stalemates for the current player
-        if (isCheckmate(validKingMoves, gameState.currentTurn, dangers[1])) {
+        if (isCheckmate(validKingMoves, dangers[1])) {
           setGameState((state) => ({
             ...state,
             gameIsOver: [true, oppositeColor(gameState.currentTurn)]
           }));
-        } else if (isStalemate(validKingMoves, gameState.currentTurn, dangers[1])) {
+        } else if (isStalemate(validKingMoves, dangers[1])) {
           setGameState((state) => ({
             ...state,
             gameIsOver: [true, ""]
@@ -235,12 +243,32 @@ function App() {
     return dangerZones;
   }
 
+  const addEnPassantMoves = (pos, color) => {
+    const leftPawn = findPiece([pos[0], pos[1] - 1]);
+    const rightPawn = findPiece([pos[0], pos[1] + 1]);
+
+    const isCurrentEnPassantable = (piece) => (
+      gameState.currentlyEnPassantable !== undefined && indexPiece(piece[0]) === gameState.currentlyEnPassantable[0] && piece[2] === gameState.currentlyEnPassantable[1]
+    )
+
+    let attackTile = [];
+
+    if (isOpponentPawn(leftPawn) && isCurrentEnPassantable(leftPawn)) {
+      attackTile = color === "b" ? ([1, -1]) : ([-1, -1])
+    } else if (isOpponentPawn(rightPawn) && isCurrentEnPassantable(rightPawn)) {
+      attackTile = color === "b" ? ([1, 1]) : ([-1, 1])
+    }
+
+    return attackTile;
+  };
+
   const markValidPositions = () => {
     const piece = gameState.currentPiece;
     const pos = piece[0];
     const type = piece[1];
     const pieceTraits = pieceCharacteristics[piece[1]];
     const moves = pieceTraits.moveSet;
+    const color = piece[2];
     let validMoves = [];
 
     if (!gameState.gameIsOver) {
@@ -248,13 +276,13 @@ function App() {
         addPositions(validMoves, type, moves, pos, true);
       } else {
         if (type === "p") {
-          piece[2] === "b" ? (
+          color === "b" ? (
             // pos[0] === 1, pos[0] === 6 are to figure out if the current pawn in is its original tile and hasn't moved
             // if it still is, give the the ability to move to spaces forward 
             // the ability is not granted yet unless it passes the conditions in the addPositions function
-            addPositions(validMoves, type, [...pos[0] === 1 ? (moves[0]) : ([moves[0][0], moves[0][2], moves[0][3]])], pos)
+            addPositions(validMoves, type, [...pos[0] === 1 ? (moves[0]) : ([moves[0][0], moves[0][2], moves[0][3]])], pos, false, addEnPassantMoves(pos, color))
           ) : (
-            addPositions(validMoves, type, [...pos[0] === 6 ? (moves[1]) : ([moves[1][0], moves[1][2], moves[1][3]])], pos)
+            addPositions(validMoves, type, [...pos[0] === 6 ? (moves[1]) : ([moves[1][0], moves[1][2], moves[1][3]])], pos, false, addEnPassantMoves(pos, color))
           )
         } else if (type === "kg") {
           validMoves = gameState.validKingMoves;
@@ -288,6 +316,15 @@ function App() {
             endArr[1].push([indexPiece(root), []]);
 
             opposingKingInSight = true;
+
+            // we need to consider that if the king moves in the opposite direction of where it's being attacked from, it is not legal
+            // the following condition considers that scenario since without it, the threat stops at the king when it should also look behind since moveMoreThanOneBlock
+            // piece's threats don't stop at a block but they keep going until they hit the edge of the board
+            const spaceBeyondKing = [newPos[0] + move[0], newPos[1] + move[1]];
+
+            if (isWithinBoardGrid(spaceBeyondKing)) {
+              endArr[0].add(indexPiece(spaceBeyondKing));
+            }
           }
         }
         
@@ -319,7 +356,7 @@ function App() {
     }
   };
 
-  const addPositions = (endArr, type, moves, pos, isRecursion = false) => {
+  const addPositions = (endArr, type, moves, pos, isRecursion = false, enPassantable = []) => {
     if (isRecursion) {
       moves.forEach((move) => {
         const newPos = [move[0] + pos[0], move[1] + pos[1]];
@@ -340,7 +377,7 @@ function App() {
       const isInMoveSet = (moveSet, target) => (
         moveSet.findIndex((moveArr) => indexPiece(target) === indexPiece(moveArr)) !== -1
       );
-
+  
       moves.forEach((move) => {
         const newPos = [move[0] + pos[0], move[1] + pos[1]];
 
@@ -353,11 +390,13 @@ function App() {
             if (isInMoveSet([[1, 0], [-1, 0]], move) && foundPiece !== undefined) {
               shouldBreak = true;
             } else {
-              // let the pawn advance one OR two spaces IF there are no pieces in the way; two spaces IF there are no pieces in front of the pawn
-              if (isInMoveSet([[1, 0], [2, 0], [-1, 0], [-2, 0]], move) && foundPiece === undefined && !shouldBreak) {
-                endArr.push(indexPiece(newPos));
-              // the pawn can not attack any opponent pieces unless it is diagonally ALSO, the king cannot be attacked
-              } else if (isInMoveSet([[1, 1], [1, -1], [-1, 1], [-1, -1]], move) && foundPiece !== undefined && foundPiece[1] !== "kg" && foundPiece[2] !== gameState.currentTurn) {
+              if (
+                // let the pawn advance one OR two spaces IF there are no pieces in the way; two spaces IF there are no pieces in front of the pawn
+                (isInMoveSet([[1, 0], [2, 0], [-1, 0], [-2, 0]], move) && foundPiece === undefined && !shouldBreak)
+              ||
+                // the pawn can not attack any opponent pieces unless it is diagonally OR it is en passant ALSO, the king cannot be attacked
+                (isInMoveSet([[1, 1], [1, -1], [-1, 1], [-1, -1]], move) && ((foundPiece !== undefined && foundPiece[1] !== "kg" && foundPiece[2] !== gameState.currentTurn) || (gameState.currentPiece !== undefined && isInMoveSet([move], enPassantable)))
+              )) {
                 endArr.push(indexPiece(newPos));
               }
             }
@@ -402,17 +441,21 @@ function App() {
   
         const targetTileInd = newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(pos));
 
-        // I NEED TO BE EXTREMELY CAREFUL HERE.  ORIGINALYL I WAS DOING THIS: [...gameState.deadPieces]
+        // I NEED TO BE EXTREMELY CAREFUL HERE.  ORIGINALLY I WAS DOING THIS: [...gameState.deadPieces]
         // BUT THIS DOESN'T CREATE A DEEP  COPY, IT ONLY CREATES A SHALLOW COPY!!!!!!!
         // MEANING I WAS MODIFYING THE STATE DIRECTLY SO I HAD TO CREATE A COPY OF BOTH SIDES LIKE SO:
         const newDeadPieces = [[...gameState.deadPieces[0]], [...gameState.deadPieces[1]]];
         let attackee = [];
+
+        const killPiece = (target) => (
+          currentTurn === "b" ? (newDeadPieces[1].push(target)) : (newDeadPieces[0].push(target))
+        )
   
         // we are attacking a piece if true
         if (targetTileInd !== -1) {
           attackee = newBoard[targetTileInd];
   
-          currentTurn === "b" ? (newDeadPieces[1].push(attackee)) : (newDeadPieces[0].push(attackee));
+          killPiece(attackee);
   
           newBoard.splice(targetTileInd, 1);
         }
@@ -435,8 +478,11 @@ function App() {
             ...newBoard,
             [pos, ...currentPiece.slice(1)]
           ])
-        )
+        );
 
+
+        // create a snapshot of the baord here in case current player makes an illegal move
+        // and we have to roll back everything
         const defaultGameState = {
           ...gameState,
           lastBoardState: {
@@ -451,13 +497,12 @@ function App() {
           currentTurn: oppositeColor(currentTurn),
           currentPiece: undefined,
           deadPieces: newDeadPieces,
-        }
+          currentlyEnPassantable: undefined
+        };
 
         // if there is any king or rook interaction AND the current castlelable array is not less than 2
         // continue so we can either castle or modify castlelable
         if (((["kg", "r"].includes(currentPiece[1]) && kingHasNotMoved(castleArr)) || isRookAttacked) && castleArr.length > 1) {
-          // create a snapshot of the baord here in case current player makes an illegal move
-          // and we have to roll back everything; this also includes deadPieces and castleable
           setGameState({
             ...defaultGameState,
             castlelable: {
@@ -497,6 +542,40 @@ function App() {
         }
   
         if (currentPiece[1] === "p") {
+          // this is where en passant happens
+          const currentEnPassant = gameState.currentlyEnPassantable;
+
+          if (currentEnPassant !== undefined) {
+            // figure out if we're looking behind our future pos ("b") or in front ("w")
+            const enPassantPiece = currentPiece[2] === "b" ? ([-1, 0]) : ([1, 0]);
+
+            // find the pawn that's we're able to en passant
+            const foundOppPawn = findPiece([pos[0] + enPassantPiece[0], pos[1] + enPassantPiece[1]]);
+  
+            // if foundOppPawn is an opponent pawn and it matches the location and color of our currentEnPassant
+            if (isOpponentPawn(foundOppPawn) && indexPiece(foundOppPawn[0]) === currentEnPassant[0] && foundOppPawn[2] === currentEnPassant[1]) {
+              // then attack foundOppPawn
+              newBoard.splice(newBoard.findIndex((arr) => indexPiece(arr[0]) === indexPiece(foundOppPawn[0])), 1);
+
+              killPiece(foundOppPawn);
+
+              normalPieceMove();
+            }
+          }
+          
+          // if we move two spaces and there is a opponent pawn on the left or right side of this pawn,
+          // make currentlyEnPassantable the current piece
+          if (Math.abs(pos[0] - currentPiece[0][0]) === 2 && [[0, 1], [0, -1]].some((move) => isOpponentPawn(findPiece([move[0] + pos[0], move[1] + pos[1]])))) {
+            setGameState({
+              ...defaultGameState,
+              currentlyEnPassantable: [indexPiece(pos), currentPiece[2]]
+            });
+          } else {
+            setGameState({
+              ...defaultGameState,
+            });
+          }
+
           // if a pawn reaches the opponents side, give them the option to convert
           if ((pos[0] === 7 && currentPiece[2] === "b") || (pos[0] === 0 && currentPiece[2] === "w")) {
            setConvertOptions({
@@ -541,6 +620,7 @@ function App() {
 
     return foundPiece[2] !== gameState.currentTurn && foundPiece[1] !== "kg";
   };
+  
 
   const isValidMove = (pos) => (
     isWithinBoardGrid(pos) && isOpposingPieceOrEmpty(pos)
@@ -601,26 +681,27 @@ function App() {
     return attackingKing.some((arr) => arr[1].some((atk) => validMoves.includes(atk)));
   };
 
-  const isStalemate = (validKingMoves, currentTurn, attackingKing) => (
+  const isStalemate = (validKingMoves, attackingKing) => (
     !isCheck(attackingKing) && boardState.every((piece) => {
       const pos = piece[0];
       const type = piece[1];
       const pieceTraits = pieceCharacteristics[piece[1]];
       const moves = pieceTraits.moveSet;
+      const color = piece[2];
       let validMoves = [];
 
-      if (piece[2] === currentTurn) {
+      if (color === gameState.currentTurn) {
         if (pieceTraits.moveMoreThanOneBlock) {
           addPositions(validMoves, type, moves, pos, true);
         } else {
           if (type === "p") {
-            piece[2] === "b" ? (
+            color === "b" ? (
               // pos[0] === 1, pos[0] === 6 are to figure out if the current pawn in is its original tile and hasn't moved
               // if it still is, give the the ability to move to spaces forward 
               // the ability is not granted yet unless it passes the conditions in the addPositions function
-              addPositions(validMoves, type, [...pos[0] === 1 ? (moves[0]) : ([moves[0][0], moves[0][2], moves[0][3]])], pos)
+              addPositions(validMoves, type, [...pos[0] === 1 ? (moves[0]) : ([moves[0][0], moves[0][2], moves[0][3]])], pos, addEnPassantMoves(pos, color))
             ) : (
-              addPositions(validMoves, type, [...pos[0] === 6 ? (moves[1]) : ([moves[1][0], moves[1][2], moves[1][3]])], pos)
+              addPositions(validMoves, type, [...pos[0] === 6 ? (moves[1]) : ([moves[1][0], moves[1][2], moves[1][3]])], pos, addEnPassantMoves(pos, color))
             )
           } else if (type === "kg") {
             validMoves = validKingMoves;
@@ -634,15 +715,22 @@ function App() {
     })
   );
 
-  const isCheckmate = (validKingMoves, currentTurn, attackingKing) => (
+  const isCheckmate = (validKingMoves, attackingKing) => (
     // SINCE THERE ARE THINGS PASSED INTO HERE THAT NEED THE CURRENT STATE IN THE SECOND EFFECT, WE DON'T DO gameState.example IN ANY OF THESE
     // FUNCTIONS BECAUSE THEY ARE BASED ON THE STATE THAT IS ABOUT TO COME UP
 
     // if there is a double check && the king is in danger AND the king has no valid moves, it is a checkmate!!!
     // OR 
     // if the king is in check && we cannot block the ayttack and we cannot capture the attacker && the king has no more valid moves, it is a checkmate!!!
-    validKingMoves <= 0 && (isDoubleCheck(attackingKing) || (isCheck(attackingKing) && !isBlockable(currentTurn, attackingKing) && !isCapturable(oppositeColor(currentTurn), validKingMoves, attackingKing)))
+    validKingMoves <= 0 && (isDoubleCheck(attackingKing) || (isCheck(attackingKing) && !isBlockable(gameState.currentTurn, attackingKing) && !isCapturable(oppositeColor(gameState.currentTurn), validKingMoves, attackingKing)))
   );
+
+  const isOpponentPawn = (piece) => (
+    piece !== undefined && piece[1] === "p" && piece[2] !== gameState.currentTurn
+  )
+
+  console.log(boardState);
+
 
   return (
     <div className="chess-container">
@@ -734,6 +822,3 @@ function App() {
 };
 
 export default App;
-
-
-
