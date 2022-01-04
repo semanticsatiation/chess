@@ -1,5 +1,31 @@
 .chess-container {
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.game-end-menu {
+    flex-direction: column;
+    position: absolute;
+    z-index: 9999;
+    top: 45%;
+    padding: 40px;
+    background: #b6b6b6;
+    border: 5px solid;
+    font-weight: bold;
+}
+
+.game-end-menu span {
+    padding: 20px;
+}
+
+header, .game-end-menu {
+    font-size: 20px;
+}
+
+.chess-board-container {
+    display: flex;
     align-items: center;
 }
 
@@ -63,14 +89,6 @@
     align-items: center;
 }
 
-.black {
-    color: black;
-}
-
-.white {
-    color: white;
-}
-
 .mark {
     cursor: pointer;
     background: rgba(255, 0, 0, 0.705) !important;
@@ -82,6 +100,34 @@
 
 .current-piece {
     border: 5px solid rgba(255, 0, 0, 0.705);
+}
+
+.turn-block, header > span  {
+    font-weight: bold;
+    padding: 10px;
+}
+
+.block-color {
+    border: 2px solid;
+    margin-left: 5px;
+    height: 20px;
+    width: 20px;
+}
+
+.black-piece {
+    color: black;
+}
+
+.white-piece {
+    color: white;
+}
+
+.black {
+    background: black;
+}
+
+.white {
+    background: white;
 }
 
 .arrow-down {

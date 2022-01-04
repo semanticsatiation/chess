@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import Piece from './components/piece';
 import './stylesheets/chess.css';
-import { faChessBishop, faChessKing, faChessPawn, faChessKnight, faChessRook, faChessQueen} from '@fortawesome/free-solid-svg-icons';
+import { faChessBishop, faChessKing, faChessPawn, faChessKnight, faChessRook, faChessQueen, faRedo} from '@fortawesome/free-solid-svg-icons';
 import DeadPieces from './components/dead_pieces';
+import BlockColor from './components/block_color';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 const defaultBoard = [
   [ [0, 0], "r", "b" ],  [ [0, 1], "kn", "b" ],
@@ -22,6 +24,27 @@ const defaultBoard = [
   [ [7, 4], "kg", "w" ], [ [7, 5], "b", "w" ],
   [ [7, 6], "kn", "w" ], [ [7, 7], "r", "w" ]
 ];
+
+const defaultGameState = {
+  currentTurn: "w",
+  currentPiece: undefined,
+  currentlyEnPassantable: undefined,
+  validPositions: [],
+  dangerZones: new Set([]),
+  isAttackingKing: [],
+  validKingMoves: [],
+  deadPieces: [[], []],
+  castlelable: {
+    "b": [0, 4 ,7],
+    "w": [56, 60, 63]
+  },
+  gameIsOver: false,
+  lastBoardState: {
+    gameState: {},
+    boardState: []
+  },
+  immovablePieces: []
+}
 
 
 export const pieceCharacteristics = {
@@ -97,30 +120,11 @@ let opposingKingInSight = false;
 function App() {
   const [boardState, setBoardState] = useState([...defaultBoard]);
 
+  const [gameState, setGameState] = useState({...defaultGameState});
+
   const [convertOptions, setConvertOptions] = useState({
     isShown: false,
     pieceToConvert: undefined
-  });
-
-  const [gameState, setGameState] = useState({
-    currentTurn: "w",
-    currentPiece: undefined,
-    currentlyEnPassantable: undefined,
-    validPositions: [],
-    dangerZones: new Set([]),
-    isAttackingKing: [],
-    validKingMoves: [],
-    deadPieces: [[], []],
-    castlelable: {
-      "b": [0,  7],
-      "w": [56, 60, 63]
-    },
-    gameIsOver: false,
-    lastBoardState: {
-      gameState: {},
-      boardState: []
-    },
-    immovablePieces: []
   });
 
   useEffect(() => {
@@ -331,8 +335,6 @@ function App() {
           // this is where we check if an opponents piece is the only piece protecting their king if so, they cannot not move from the path
           // our root piece is attacking from or else the king would be put in check
 
-          let multiplierArr = undefined;
-
           const hasKingInSight = (rooter, mover, kingPosition) => {
             let inPath = false;
             let rootPath = [...rooter]; 
@@ -353,7 +355,7 @@ function App() {
 
           if (safe && newPiece !== undefined && newPiece[2] === gameState.currentTurn && hasKingInSight(root, move, king[0])) {
             // the number produced here tells us how many spaces are between the king and the first piece that was hit by the root pieces attack path
-            const multiplierArrmod = multiplierArr = [...(Array(Math.abs(((kingPos - boardInd) / indexPos(move)))).keys())].splice(1);
+            const multiplierArrmod = [...(Array(Math.abs(((kingPos - boardInd) / indexPos(move)))).keys())].splice(1);
 
             // multiplierArr.length === 0 tells us that the piece is next to the king
             // if the piece found in the attackers path is the only piece protecting the king (!boardState.some), don't let it move away from the king's sight
@@ -779,74 +781,103 @@ function App() {
     piece !== undefined && piece[1] === "p" && piece[2] !== gameState.currentTurn
   )
 
+  const resetGame = () => {
+    setGameState({
+      ...defaultGameState
+    });
 
+    setBoardState([
+      ...defaultBoard
+    ]);
+  }
 
   return (
     <div className="chess-container">
-      <div>{
+      {
+        gameState.gameIsOver[0] ? (
+          <div className="game-end-menu flex-center">
+            <span>
+              Reset the board?
+            </span>
+            <button onClick={resetGame}>
+              <FontAwesomeIcon icon={faRedo}/>
+            </button>
+          </div>
+        ) : (null)
+      }
+      <header>{
         gameState.gameIsOver[0] ? (
           gameState.gameIsOver[1] === "" ? (
-            "It is a stalemate!"
+            <span>
+              It is a stalemate!
+            </span>
           ) : (
-            `Checkmate, ${oppositeColor(gameState.gameIsOver[1])}!`
+            <span className="flex-center">
+              Checkmate, <BlockColor color={oppositeColor(gameState.gameIsOver[1])}/>&nbsp;!
+            </span>
           )
-        ) : (null)
-      }</div>
-      <header>
+        ) : (
+          <div className="turn-block flex-center">
+            <span>Current turn:</span>
+            <BlockColor color={gameState.currentTurn}/>
+          </div>
+        )
+      }</header>
+
+      <div className="chess-board-container">
         <DeadPieces pieces={gameState.deadPieces[0]} />
-      </header>
-      <ul className="chess-board flex-center">{
-        [...Array(8)].map((item, ind) => (
-          <li className="row flex-center" key={ind}>{
-              [...Array(8)].map((item, i) => {
-                const index = indexPos([ind, i]);
+        <ul className="chess-board flex-center">{
+          [...Array(8)].map((item, ind) => (
+            <li className="row flex-center" key={ind}>{
+                [...Array(8)].map((item, i) => {
+                  const index = indexPos([ind, i]);
 
-                let piece = findPiece([ind, i]);
+                  let piece = findPiece([ind, i]);
 
-                const isMarked = gameState.validPositions.includes(index);
-                const isDangerous = gameState.dangerZones.has(index);
+                  const isMarked = gameState.validPositions.includes(index);
+                  const isDangerous = gameState.dangerZones.has(index);
 
-                return (
-                  <div className={`${isDangerous ? ("") : ("")} ${isMarked ? ("mark") : ("")} block ${gameState.currentPiece && index === indexPos(gameState.currentPiece[0]) ? ("current-piece") : ("")}`} key={i} onClick={(e) => setCurrentPiece([ind, i], isMarked)}>{
-                      piece !== undefined ? (
-                        <button className="flex-center">
-                          <Piece
-                            icon={pieceCharacteristics[piece[1]].chessPiece}
-                            color={piece[2]}
-                          />
-                        </button>
-                      ) : (null)
-                    }
-                    {
-                      convertOptions.isShown && indexPos(convertOptions.pieceToConvert[0]) === index ? (
-                        <ul className="convert-options flex-center">
-                          {
-                          ["q", "b", "kn", "r"].map((piece, ind) => (
-                            <li key={ind} onClick={e => convertPawn(convertOptions.pieceToConvert[0], piece)}>
-                              <button className="flex-center">
-                                <Piece
-                                  icon={pieceCharacteristics[piece].chessPiece}
-                                  color={convertOptions.pieceToConvert[2]}
-                                />
-                              </button>
-                            </li>
-                          ))}
-                          <div className="arrow-down">
-                            <div className="inner-arrow-down">
+                  return (
+                    <div className={`${isDangerous ? ("") : ("")} ${isMarked ? ("mark") : ("")} block ${gameState.currentPiece && index === indexPos(gameState.currentPiece[0]) ? ("current-piece") : ("")}`} key={i} onClick={(e) => setCurrentPiece([ind, i], isMarked)}>{
+                        piece !== undefined ? (
+                          <button className="flex-center">
+                            <Piece
+                              icon={pieceCharacteristics[piece[1]].chessPiece}
+                              color={piece[2]}
+                            />
+                          </button>
+                        ) : (null)
+                      }
+                      {
+                        convertOptions.isShown && indexPos(convertOptions.pieceToConvert[0]) === index ? (
+                          <ul className="convert-options flex-center">
+                            {
+                              ["q", "b", "kn", "r"].map((piece, ind) => (
+                                <li key={ind} onClick={e => convertPawn(convertOptions.pieceToConvert[0], piece)}>
+                                  <button className="flex-center">
+                                    <Piece
+                                      icon={pieceCharacteristics[piece].chessPiece}
+                                      color={convertOptions.pieceToConvert[2]}
+                                    />
+                                  </button>
+                                </li>
+                              ))
+                            }
+                            <div className="arrow-down">
+                              <div className="inner-arrow-down">
+                              </div>
                             </div>
-                          </div>
-                        </ul>
-                      ) : (null)
-                    }
-                  </div>
-                );
-              })
-          }</li>
-        ))
-      }</ul>
-      <footer>
+                          </ul>
+                        ) : (null)
+                      }
+                    </div>
+                  );
+                })
+            }</li>
+          ))
+        }</ul>
         <DeadPieces pieces={gameState.deadPieces[1]} classOption="flex-center"/>
-      </footer>
+      </div>
     </div>
   );
 };
