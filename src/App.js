@@ -735,6 +735,7 @@ function App() {
 
     return attackingKing.some((arr) => arr[1].some((atk) => validMoves.includes(atk)));
   };
+  
 
   const isStalemate = (validKingMoves, attackingKing, immovablePieces) => (
     // if the king is not in check && all of the pieces of the current player have no valid moves left, it is a stalemate
