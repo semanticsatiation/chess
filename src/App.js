@@ -549,17 +549,18 @@ function App() {
         // if there is any king or rook interaction AND the current castlelable array is not less than 2
         // continue so we can either castle or modify castlelable
         if (((["kg", "r"].includes(currentPiece[1]) && kingHasNotMoved(castleArr)) || isRookAttacked) && castleArr.length > 1) {
+          defaultGameState["castlelable"] = {
+            ...gameState.castlelable,
+            ...(isRookAttacked && currentPiece[1] === "r" ? (
+              {
+                ...setCastlelable(isRookAttacked, currentTurn),
+                ...setCastlelable(!isRookAttacked, currentTurn)
+              }
+            ) : (setCastlelable(isRookAttacked, currentTurn)))
+          };
+
           setGameState({
-            ...defaultGameState,
-            castlelable: {
-              ...gameState.castlelable,
-              ...(isRookAttacked && currentPiece[1] === "r" ? (
-                {
-                  ...setCastlelable(isRookAttacked, currentTurn),
-                  ...setCastlelable(!isRookAttacked, currentTurn)
-                }
-              ) : (setCastlelable(isRookAttacked, currentTurn)))
-            }
+            ...defaultGameState
           });
 
           // this is where the actual castling takes place 
